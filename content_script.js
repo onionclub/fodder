@@ -62,8 +62,9 @@
     CONFIDENCE_LOW: 5,       // Veff < 5 → low confidence (prior-dominant)
 
     // ── Tier Cutoffs ──
-    TIER_GREEN: 70,
-    TIER_YELLOW: 45,
+    TIER_ORGANIC: 70,        // "Pure" - The Golden Truffle
+    TIER_FILLER: 40,         // "Processed" - The Corn Cob
+    // Below 40 = "Bio-Hazard" - The Cube
 
     // ── Clickbait Detection ──
     CLICKBAIT_CAPS_THRESHOLD: 0.5,
@@ -77,12 +78,56 @@
       "will shock you", "can't believe", "never expected",
     ],
 
-    BADGE_ID: "uf-utility-badge",
-    DESAT_CLASS: "uf-desaturated",
+    // ── FODDER DOM IDs ──
+    PILL_ID: "fodder-pill",
+    BENTO_ID: "fodder-bento",
+    DESAT_CLASS: "fodder-desaturated",
   };
 
   const processed = new Set();
   let currentVideoId = null;
+
+  // ═══════════════════════════════════════════
+  //  FODDER SVG ICONS — Geometric food metaphors
+  // ═══════════════════════════════════════════
+
+  const FODDER_ICONS = {
+    // The Golden Truffle (Organic/Pure)
+    truffle: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 3C9.5 3 7.5 4.5 6.5 6.5C5.5 8.5 5 11 6 13C7 15 8.5 16.5 10.5 17.5C11.5 18 12.5 18 13.5 17.5C15.5 16.5 17 15 18 13C19 11 18.5 8.5 17.5 6.5C16.5 4.5 14.5 3 12 3Z" 
+            fill="#FFD60A" stroke="#FFD60A" stroke-width="1.5" stroke-linejoin="round"/>
+      <ellipse cx="10" cy="10" rx="1.5" ry="1.5" fill="#FFA500" opacity="0.4"/>
+      <ellipse cx="14" cy="12" rx="1.2" ry="1.2" fill="#FFA500" opacity="0.4"/>
+      <path d="M12 3L12 1" stroke="#FFD60A" stroke-width="2" stroke-linecap="round"/>
+    </svg>`,
+    
+    // The Corn Cob (Filler/Processed)
+    corn: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="4" width="8" height="16" rx="1" fill="#FF9F0A" stroke="#FF9F0A" stroke-width="1.5"/>
+      <line x1="10" y1="6" x2="10" y2="18" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
+      <line x1="12" y1="6" x2="12" y2="18" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
+      <line x1="14" y1="6" x2="14" y2="18" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
+      <line x1="8" y1="9" x2="16" y2="9" stroke="rgba(0,0,0,0.15)" stroke-width="0.5"/>
+      <line x1="8" y1="12" x2="16" y2="12" stroke="rgba(0,0,0,0.15)" stroke-width="0.5"/>
+      <line x1="8" y1="15" x2="16" y2="15" stroke="rgba(0,0,0,0.15)" stroke-width="0.5"/>
+      <path d="M8 3C8 3 10 2 12 2C14 2 16 3 16 3" stroke="#FF9F0A" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`,
+    
+    // The Cube (Synthetic/Bio-Hazard)
+    cube: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L20 7L20 17L12 22L4 17L4 7L12 2Z" fill="#FF375F" stroke="#FF375F" stroke-width="1.5" stroke-linejoin="bevel"/>
+      <path d="M12 2L12 22" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>
+      <path d="M12 2L20 7L12 12L4 7L12 2Z" fill="rgba(255,255,255,0.15)"/>
+      <path d="M12 12L20 17" stroke="rgba(0,0,0,0.2)" stroke-width="0.8"/>
+      <path d="M12 12L4 17" stroke="rgba(0,0,0,0.2)" stroke-width="0.8"/>
+    </svg>`,
+    
+    // Loading spinner
+    loading: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="9" stroke="rgba(245,245,247,0.2)" stroke-width="2.5"/>
+      <path d="M12 3C16.9706 3 21 7.02944 21 12" stroke="#F5F5F7" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>`,
+  };
 
   // ═══════════════════════════════════════════
   //  SCORING MODEL: Pareto Utility 4.0
@@ -185,7 +230,7 @@
 
     return {
       score: Math.round(score * 10) / 10,
-      tier: score >= CONFIG.TIER_GREEN ? "green" : score >= CONFIG.TIER_YELLOW ? "yellow" : "red",
+      tier: score >= CONFIG.TIER_ORGANIC ? "organic" : score >= CONFIG.TIER_FILLER ? "filler" : "synthetic",
       slopFlag,
       confidence,
       clickbaitScore: C,
@@ -367,22 +412,32 @@
   //  BADGE UI
   // ═══════════════════════════════════════════
 
+  // ═══════════════════════════════════════════
+  //  FODDER TIER SYSTEM — "Sommelier" Messaging
+  // ═══════════════════════════════════════════
+
   function getTierConfig(tier) {
     return {
-      green: {
-        icon: "◆", label: "Verified Utility",
-        bg: "linear-gradient(135deg, #0d9a4e 0%, #06d66b 100%)",
-        border: "#0d9a4e", glow: "0 0 14px rgba(6, 214, 107, 0.45)",
+      organic: {
+        icon: FODDER_ICONS.truffle,
+        label: "ORGANIC",
+        verdict: "Pure.",
+        detail: "Free-range content detected. Safe for consumption.",
+        className: "tier-organic"
       },
-      yellow: {
-        icon: "●", label: "Standard",
-        bg: "linear-gradient(135deg, #c28a09 0%, #e8b230 100%)",
-        border: "#c28a09", glow: "0 0 14px rgba(232, 178, 48, 0.35)",
+      filler: {
+        icon: FODDER_ICONS.corn,
+        label: "FILLER",
+        verdict: "Processed.",
+        detail: "Contains additives and preservatives. Caloric but empty.",
+        className: "tier-filler"
       },
-      red: {
-        icon: "▼", label: "Low Utility / Slop",
-        bg: "linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)",
-        border: "#b91c1c", glow: "0 0 14px rgba(239, 68, 68, 0.45)",
+      synthetic: {
+        icon: FODDER_ICONS.cube,
+        label: "SYNTHETIC",
+        verdict: "Bio-Hazard.",
+        detail: "High levels of AI slurry detected. Thumbnail DNA does not match content.",
+        className: "tier-synthetic"
       },
     }[tier];
   }
@@ -394,15 +449,18 @@
   }
 
   function injectBadge(result) {
-    const existing = document.getElementById(CONFIG.BADGE_ID);
+    // Remove existing
+    const existing = document.getElementById(CONFIG.PILL_ID);
     if (existing) existing.remove();
+    const existingBento = document.getElementById(CONFIG.BENTO_ID);
+    if (existingBento) existingBento.remove();
+    
     document.querySelectorAll(`.${CONFIG.DESAT_CLASS}`)
       .forEach((el) => el.classList.remove(CONFIG.DESAT_CLASS));
 
     const tier = getTierConfig(result.tier);
-    const confLabel = confidenceLabel(result.confidence);
 
-    // Identify negative factors (contributing to low score)
+    // Identify negative factors for red highlighting in Bento
     const negativeFactors = [];
     if (result.raw.A < 0.3) negativeFactors.push('Approval');
     if (result.raw.gamma < 0.3) negativeFactors.push('Velocity');
@@ -411,92 +469,155 @@
     if (result.clickbaitScore > 0.3) negativeFactors.push('Clickbait');
     if (result.raw.decay < 0.7) negativeFactors.push('Decay');
 
-    const highlightNegative = (label, value) => {
-      return negativeFactors.some(f => label.includes(f)) 
-        ? `<span style="color: #ef4444; font-weight: 600;">${label}: ${value}</span>`
-        : `<div>${label}: ${value}</div>`;
-    };
+    // ═══ COMPONENT A: The Pill ═══
+    const pill = document.createElement("div");
+    pill.id = CONFIG.PILL_ID;
+    pill.className = tier.className;
+    pill.innerHTML = `
+      <div class="fodder-pill-icon">${tier.icon}</div>
+      <span class="fodder-pill-label">${tier.label}</span>
+    `;
 
-    const badge = document.createElement("div");
-    badge.id = CONFIG.BADGE_ID;
-    badge.innerHTML = `
-      <div class="uf-badge-inner" style="
-        background: ${tier.bg};
-        border: 1px solid ${tier.border};
-        box-shadow: ${tier.glow};
-        ${result.confidence !== "full" ? "opacity: 0.75;" : ""}
-      ">
-        <span class="uf-badge-icon">${tier.icon}</span>
-        <span class="uf-badge-score">${result.score}</span>
-        <span class="uf-badge-label">${tier.label}</span>
-        ${result.slopFlag ? '<span class="uf-slop-flag">⚠ Low Interaction</span>' : ""}
-        ${result.clickbaitScore > 0.3 ? '<span class="uf-slop-flag">⚠ Clickbait</span>' : ""}
-        ${confLabel ? `<span class="uf-slop-flag">${confLabel}</span>` : ""}
-        <div class="uf-badge-details">
-          ${highlightNegative('Approval', `${(result.raw.bayesian * 100).toFixed(1)}% → ${(result.raw.A * 100).toFixed(0)}%`)}
-          ${highlightNegative('Velocity', `${result.raw.gamma.toFixed(3)} (V/S: ${result.raw.ratio.toFixed(2)})`)}
-          ${highlightNegative('Integrity', `${(result.raw.I * 100).toFixed(1)}%`)}
-          ${highlightNegative('Volume', `${(result.raw.volumeScore * 100).toFixed(0)}% (${result.raw.Veff} likes)`)}
-          ${highlightNegative('Clickbait', `${(result.clickbaitScore * 100).toFixed(0)}%`)}
-          ${highlightNegative('Decay', `${(result.raw.decay * 100).toFixed(1)}%`)}
-          <div>Engagement Velocity: ${(result.raw.engagementVelocity * 100000).toFixed(2)}</div>
-          <div>Recency Bonus: ${(result.raw.recencyBonus * 100).toFixed(0)}%</div>
-          <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.15);">
-            Votes: ${result.raw.Veff} (${result.confidence})
-          </div>
+    // Toggle Bento Box on pill click
+    pill.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const bento = document.getElementById(CONFIG.BENTO_ID);
+      if (bento) {
+        bento.classList.toggle("active");
+        pill.classList.toggle("fodder-active");
+      }
+    });
+
+    // ═══ COMPONENT B: The Bento Box ═══
+    const bento = document.createElement("div");
+    bento.id = CONFIG.BENTO_ID;
+    bento.innerHTML = `
+      <div class="fodder-bento-header">
+        <div class="fodder-brand">FODDER</div>
+        <div class="fodder-verdict ${tier.className}">${tier.verdict}</div>
+      </div>
+      
+      <div class="fodder-score-main">
+        <div class="fodder-score-value ${tier.className}">${result.score}</div>
+        <div class="fodder-score-label">HUMANITY SCORE</div>
+      </div>
+      
+      <div class="fodder-metric">
+        <div class="fodder-metric-label">APPROVAL DNA</div>
+        <div class="fodder-metric-value ${result.raw.A < 0.3 ? 'negative' : ''}">
+          ${(result.raw.A * 100).toFixed(0)}%
+        </div>
+        <div class="fodder-metric-detail">
+          ${(result.raw.bayesian * 100).toFixed(1)}% raw ratio
         </div>
       </div>
-      <a class="uf-attribution" href="https://returnyoutubedislike.com" target="_blank" rel="noopener">
+      
+      <div class="fodder-metric">
+        <div class="fodder-metric-label">ENGAGEMENT VELOCITY</div>
+        <div class="fodder-metric-value ${result.raw.gamma < 0.3 ? 'negative' : ''}">
+          ${(result.raw.gamma * 100).toFixed(0)}%
+        </div>
+        <div class="fodder-metric-detail">
+          V/S: ${result.raw.ratio.toFixed(2)} · Recency: ${(result.raw.recencyBonus * 100).toFixed(0)}%
+        </div>
+      </div>
+      
+      <div class="fodder-metric">
+        <div class="fodder-metric-label">VOLUME MAGNITUDE</div>
+        <div class="fodder-metric-value ${result.raw.volumeScore < 0.3 ? 'negative' : ''}">
+          ${(result.raw.volumeScore * 100).toFixed(0)}%
+        </div>
+        <div class="fodder-metric-detail">
+          ${result.raw.Veff.toLocaleString()} total likes
+        </div>
+      </div>
+      
+      <div class="fodder-metric">
+        <div class="fodder-metric-label">INTEGRITY INDEX</div>
+        <div class="fodder-metric-value ${result.raw.I < 0.3 ? 'negative' : ''}">
+          ${(result.raw.I * 100).toFixed(0)}%
+        </div>
+        <div class="fodder-metric-detail">
+          ${result.interactionDensity}% interaction rate
+        </div>
+      </div>
+      
+      ${result.tier === 'synthetic' ? `
+        <div class="fodder-bento-footer">
+          ${tier.detail} Recommended handling: DO NOT CONSUME.
+        </div>
+      ` : ''}
+      
+      <a class="fodder-attribution" href="https://returnyoutubedislike.com" target="_blank" rel="noopener">
         Data via Return YouTube Dislike
       </a>
     `;
 
+    // Inject into DOM
     const target =
+      document.querySelector("#info #info-contents #info-text") ||
       document.querySelector("#above-the-fold") ||
-      document.querySelector("#info-contents") ||
-      document.querySelector("#top-row");
-    if (target) target.insertBefore(badge, target.firstChild);
+      document.querySelector("#info-contents");
+    
+    if (target) {
+      // Inject pill inline with video metadata
+      const metaRow = target.querySelector("#info-strings, #info") || target;
+      metaRow.style.display = "flex";
+      metaRow.style.alignItems = "center";
+      metaRow.appendChild(pill);
+      
+      // Inject bento as a popover relative to pill
+      pill.style.position = "relative";
+      pill.appendChild(bento);
+    }
 
-    if (result.tier === "red") {
-      const player = document.querySelector("#movie_player video");
+    // Desaturate synthetic content
+    if (result.tier === "synthetic") {
+      const player = document.querySelector("#movie_player video, ytd-player video");
       if (player) player.classList.add(CONFIG.DESAT_CLASS);
     }
   }
 
   function showLoading() {
-    const existing = document.getElementById(CONFIG.BADGE_ID);
+    const existing = document.getElementById(CONFIG.PILL_ID);
     if (existing) existing.remove();
-    const badge = document.createElement("div");
-    badge.id = CONFIG.BADGE_ID;
-    badge.innerHTML = `
-      <div class="uf-badge-inner uf-loading" style="
-        background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
-        border: 1px solid #4b5563;
-      ">
-        <span class="uf-badge-icon uf-spin">⟳</span>
-        <span class="uf-badge-label">Analyzing...</span>
-      </div>
+    
+    const pill = document.createElement("div");
+    pill.id = CONFIG.PILL_ID;
+    pill.className = "fodder-loading";
+    pill.innerHTML = `
+      <div class="fodder-pill-icon fodder-spin">${FODDER_ICONS.loading}</div>
+      <span class="fodder-pill-label">ANALYZING</span>
     `;
-    const target = document.querySelector("#above-the-fold") || document.querySelector("#info-contents");
-    if (target) target.insertBefore(badge, target.firstChild);
+    
+    const target = document.querySelector("#info #info-strings, #info-contents, #above-the-fold");
+    if (target) {
+      const metaRow = target.querySelector("#info-strings, #info") || target;
+      metaRow.appendChild(pill);
+    }
   }
 
   function showError(msg) {
-    const existing = document.getElementById(CONFIG.BADGE_ID);
+    const existing = document.getElementById(CONFIG.PILL_ID);
     if (existing) existing.remove();
-    const badge = document.createElement("div");
-    badge.id = CONFIG.BADGE_ID;
-    badge.innerHTML = `
-      <div class="uf-badge-inner" style="
-        background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
-        border: 1px solid #4b5563;
-      ">
-        <span class="uf-badge-icon">✕</span>
-        <span class="uf-badge-label">${msg}</span>
+    
+    const pill = document.createElement("div");
+    pill.id = CONFIG.PILL_ID;
+    pill.innerHTML = `
+      <div class="fodder-pill-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="#FF375F" stroke-width="2"/>
+          <path d="M15 9L9 15M9 9l6 6" stroke="#FF375F" stroke-width="2" stroke-linecap="round"/>
+        </svg>
       </div>
+      <span class="fodder-pill-label" style="color: #86868B;">UNAVAILABLE</span>
     `;
-    const target = document.querySelector("#above-the-fold") || document.querySelector("#info-contents");
-    if (target) target.insertBefore(badge, target.firstChild);
+    
+    const target = document.querySelector("#info #info-strings, #info-contents, #above-the-fold");
+    if (target) {
+      const metaRow = target.querySelector("#info-strings, #info") || target;
+      metaRow.appendChild(pill);
+    }
   }
 
   // ═══════════════════════════════════════════
@@ -577,27 +698,28 @@
       const title = scrapeThumbnailTitle(element);
 
       const result = await scoreVideo({ videoId, channelHandle, daysOld, title });
+      const tier = getTierConfig(result.tier);
 
       const miniBadge = document.createElement("div");
-      miniBadge.className = `uf-mini-badge uf-tier-${result.tier}`;
+      miniBadge.className = `fodder-mini-badge ${tier.className}`;
       miniBadge.textContent = result.score.toFixed(0);
-      miniBadge.title = `Utility: ${result.score} — ${getTierConfig(result.tier).label}`;
+      miniBadge.title = `FODDER: ${result.score} — ${tier.label}`;
 
-      // Dim mini-badge if low confidence
+      // Low confidence styling
       if (result.confidence !== "full") {
-        miniBadge.style.opacity = "0.7";
+        miniBadge.classList.add("low-confidence");
         miniBadge.textContent = `~${result.score.toFixed(0)}`;
       }
 
       const thumbContainer = element.querySelector("#thumbnail");
       if (thumbContainer) {
         thumbContainer.style.position = "relative";
-        const existingMini = thumbContainer.querySelector(".uf-mini-badge");
+        const existingMini = thumbContainer.querySelector(".fodder-mini-badge");
         if (existingMini) existingMini.remove();
         thumbContainer.appendChild(miniBadge);
       }
 
-      if (result.tier === "red") {
+      if (result.tier === "synthetic") {
         const img = element.querySelector("img");
         if (img) img.classList.add(CONFIG.DESAT_CLASS);
       }

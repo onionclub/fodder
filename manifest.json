@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "The Utility Filter",
+  "name": "FODDER",
   "version": "4.0.0",
-  "description": "Identifies high-utility, expert-led YouTube content while filtering AI slop and subscriber churn.",
+  "description": "The Premium Feed. A Michelin Guide for Internet content—clinical analysis of YouTube quality with luxury aesthetics.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://returnyoutubedislikeapi.com/*",
