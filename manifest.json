@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "The Utility Filter",
+  "version": "2.0.0",
+  "description": "Identifies high-utility, expert-led YouTube content while filtering AI slop and subscriber churn.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://returnyoutubedislikeapi.com/*",
+    "https://www.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content_script.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

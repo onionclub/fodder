@@ -1,0 +1,139 @@
+/* ─── The Utility Filter v3.2 — Styles ─── */
+
+#uf-utility-badge {
+  margin: 10px 0;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  z-index: 100;
+  position: relative;
+}
+
+.uf-badge-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.uf-badge-inner:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.uf-badge-inner:hover .uf-badge-details {
+  display: block;
+}
+
+.uf-badge-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.uf-badge-score {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.uf-badge-label {
+  font-size: 15px;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.uf-slop-flag {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fbbf24;
+  letter-spacing: 0.5px;
+}
+
+.uf-badge-details {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #d1d5db;
+  white-space: nowrap;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  line-height: 1.7;
+}
+
+.uf-badge-details div {
+  font-variant-numeric: tabular-nums;
+}
+
+.uf-attribution {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  color: #6b7280;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.uf-attribution:hover {
+  opacity: 1;
+  color: #9ca3af;
+  text-decoration: underline;
+}
+
+.uf-loading { opacity: 0.8; }
+
+.uf-spin {
+  display: inline-block;
+  animation: uf-rotate 1s linear infinite;
+}
+
+@keyframes uf-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Mini Badges (30% larger) ─── */
+
+.uf-mini-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 800;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  z-index: 50;
+  pointer-events: none;
+  letter-spacing: -0.3px;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.uf-tier-green { background: rgba(13, 154, 78, 0.94); }
+.uf-tier-yellow { background: rgba(194, 138, 9, 0.94); }
+.uf-tier-red { background: rgba(185, 28, 28, 0.94); }
+
+.uf-desaturated {
+  filter: saturate(0.3) brightness(0.85) !important;
+  transition: filter 0.3s ease;
+}
