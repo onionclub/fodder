@@ -8,6 +8,7 @@
 
 <p align="center">
   <img src="fodderBanner.png" alt="FODDER Banner" />
+  <br>
   <strong>Clinical analysis of YouTube content with luxury aesthetics.</strong><br>
   Using serious mathematics to rate internet slop with Apple Modern design.
 </p>
