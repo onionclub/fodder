@@ -80,6 +80,21 @@ const TIER_CONFIG = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+//  SCORE CACHE — ensures same videoId always shows same score
+// ═══════════════════════════════════════════════════════════════
+
+const SCORE_CACHE = new Map();
+const SCORE_CACHE_MAX = 200;
+
+function cacheScore(videoId, result) {
+  SCORE_CACHE.set(videoId, result);
+  if (SCORE_CACHE.size > SCORE_CACHE_MAX) {
+    const firstKey = SCORE_CACHE.keys().next().value;
+    SCORE_CACHE.delete(firstKey);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  SCORING ENGINE
 //  ──────────────────────────────────────────────────────────────
 //  🧮 MODIFY THIS SECTION TO CHANGE THE EQUATION
@@ -262,6 +277,14 @@ function parseDaysOld(text) {
   return num * (conversionTable[unit] || 0);
 }
 
+// Compute daysOld from an ISO date string (e.g. from RYD API dateCreated)
+function daysOldFromDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  return Math.max(0, (Date.now() - d.getTime()) / 86400000);
+}
+
 function extractChannelHandle(container) {
   if (!container) return null;
   const links = container.querySelectorAll(
@@ -302,7 +325,7 @@ function scrapeWatchPageData() {
 
 function scrapeThumbnailData(container) {
   const result = {
-    videoId: null, title: null, daysOld: 30,
+    videoId: null, title: null, daysOld: 0,
     channelHandle: null, thumbnailLink: null
   };
   
@@ -331,7 +354,24 @@ function scrapeThumbnailData(container) {
   }
   
   result.channelHandle = extractChannelHandle(container);
+  
+  // Fallback: on channel pages, individual renderers may lack channel links
+  if (!result.channelHandle) {
+    result.channelHandle = extractPageChannelHandle();
+  }
+  
   return result;
+}
+
+// Extract channel handle from page-level context (channel page URL or header)
+function extractPageChannelHandle() {
+  const urlMatch = window.location.pathname.match(/^\/@([^/?]+)/);
+  if (urlMatch) return `@${urlMatch[1]}`;
+  
+  const channelMatch = window.location.pathname.match(/^\/channel\/(UC[^/?]+)/);
+  if (channelMatch) return channelMatch[1];
+  
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -442,12 +482,9 @@ async function analyzeMainVideo(retryCount = 0) {
   const videoId = new URLSearchParams(window.location.search).get("v");
   if (!videoId) return;
   
-  // Allow re-analysis if this is a different browser context (new tab)
-  // but skip if it's the exact same navigation in the same tab
   if (videoId === currentVideoId) {
-    // Check if badge already exists - if not, we need to re-render
     const existingBadge = document.getElementById(UI_CONFIG.PILL_ID);
-    if (existingBadge) return; // Badge exists, don't re-analyze
+    if (existingBadge) return;
   }
   
   currentVideoId = videoId;
@@ -460,24 +497,33 @@ async function analyzeMainVideo(retryCount = 0) {
       fetchChannelSubs(pageData.channelHandle),
     ]);
     
+    // Use RYD dateCreated as primary date source (consistent across all contexts)
+    // Fall back to DOM-scraped date only if RYD doesn't provide one
+    const rydDaysOld = daysOldFromDate(ryd.dateCreated);
+    const daysOld = rydDaysOld !== null ? rydDaysOld : pageData.daysOld;
+    
     const result = computeScore({
       likes: ryd.likes,
       dislikes: ryd.dislikes,
       viewCount: ryd.viewCount,
       subscribers: subs,
-      daysOld: pageData.daysOld,
+      daysOld: daysOld,
       title: pageData.title,
     });
     
-    // Wait for title element to be ready
+    // Cache authoritative score
+    cacheScore(videoId, result);
+    
+    // Sync any existing thumbnail badges for this video
+    syncThumbnailBadge(videoId, result);
+    
     const titleEl = document.querySelector("h1.ytd-watch-metadata");
     if (!titleEl) {
-      // Retry up to 5 times with exponential backoff
       if (retryCount < 5) {
         setTimeout(() => {
-          currentVideoId = null; // Reset so retry works
+          currentVideoId = null;
           analyzeMainVideo(retryCount + 1);
-        }, 100 * (retryCount + 1)); // 100ms, 200ms, 300ms, 400ms, 500ms
+        }, 100 * (retryCount + 1));
       }
       return;
     }
@@ -487,6 +533,17 @@ async function analyzeMainVideo(retryCount = 0) {
   } catch (error) {
     console.error("Fodder: Watch page analysis failed:", error);
   }
+}
+
+// Sync sidebar/related thumbnail badges with the authoritative watch-page score
+function syncThumbnailBadge(videoId, result) {
+  const allLinks = document.querySelectorAll(`a#thumbnail[href*="${videoId}"]`);
+  allLinks.forEach((link) => {
+    const existing = link.querySelector(`.${UI_CONFIG.MINI_BADGE_CLASS}`);
+    if (existing) existing.remove();
+    renderMiniBadge(result, link);
+    link.dataset.fodder = "done";
+  });
 }
 
 function processThumbnails() {
@@ -508,6 +565,13 @@ function processThumbnails() {
     const thumbData = scrapeThumbnailData(container);
     if (!thumbData || !thumbData.videoId) return;
     
+    // Use cached score if available (ensures consistency with watch page)
+    const cached = SCORE_CACHE.get(thumbData.videoId);
+    if (cached) {
+      renderMiniBadge(cached, thumbData.thumbnailLink);
+      return;
+    }
+    
     try {
       const [ryd, subs] = await Promise.all([
         fetchRYD(thumbData.videoId),
@@ -516,14 +580,23 @@ function processThumbnails() {
       
       if (!ryd || ryd.error) return;
       
+      // Use RYD dateCreated as primary date source (same as watch page)
+      const rydDaysOld = daysOldFromDate(ryd.dateCreated);
+      const daysOld = rydDaysOld !== null ? rydDaysOld : thumbData.daysOld;
+      
       const result = computeScore({
         likes: ryd.likes,
         dislikes: ryd.dislikes,
         viewCount: ryd.viewCount,
         subscribers: subs,
-        daysOld: thumbData.daysOld,
+        daysOld: daysOld,
         title: thumbData.title,
       });
+      
+      // Cache (won't override watch-page score if one exists)
+      if (!SCORE_CACHE.has(thumbData.videoId)) {
+        cacheScore(thumbData.videoId, result);
+      }
       
       renderMiniBadge(result, thumbData.thumbnailLink);
       
