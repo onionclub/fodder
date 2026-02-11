@@ -1,16 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "FODDER",
-  "version": "4.0.0",
-  "description": "The Premium Feed. A Michelin Guide for Internet content—clinical analysis of YouTube quality with luxury aesthetics.",
-  "permissions": ["storage"],
-  "host_permissions": [
-    "https://returnyoutubedislikeapi.com/*",
-    "https://www.youtube.com/*"
+  "name": "Fodder",
+  "version": "5.0.1",
+  "description": "YouTube content quality scoring - organic vs synthetic",
+  
+  "permissions": [
+    "storage"
   ],
+  
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://returnyoutubedislikeapi.com/*"
+  ],
+  
   "background": {
     "service_worker": "background.js"
   },
+  
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],
@@ -19,6 +25,7 @@
       "run_at": "document_idle"
     }
   ],
+  
   "icons": {
     "48": "icon48.png",
     "128": "icon128.png"

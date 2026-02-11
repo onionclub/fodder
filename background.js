@@ -1,115 +1,124 @@
-// background.js — Service Worker (Manifest V3)
-// RYD API + Channel page subscriber scraping + caching
+// background.js — Fodder v5.0
+// Service worker for API calls (RYD + channel subscribers)
 
-const RYD_BASE = "https://returnyoutubedislikeapi.com/Votes";
-const RYD_CACHE_TTL = 1000 * 60 * 60;
-const CHANNEL_CACHE_TTL = 1000 * 60 * 60 * 24;
-const rydCache = new Map();
+"use strict";
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === "FETCH_RYD") {
-    fetchRYD(msg.videoId).then(sendResponse).catch((err) => {
-      sendResponse({ error: err.message });
-    });
+const RYD_CACHE = new Map();
+const RYD_CACHE_TTL = 60 * 60 * 1000;
+const RYD_CACHE_MAX_SIZE = 500;
+const CHANNEL_CACHE_KEY = "fodder_channel_cache";
+const CHANNEL_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+async function fetchRYD(videoId) {
+  const cached = RYD_CACHE.get(videoId);
+  if (cached && Date.now() - cached.timestamp < RYD_CACHE_TTL) {
+    return cached.data;
+  }
+  
+  try {
+    const response = await fetch(
+      `https://returnyoutubedislikeapi.com/Votes?videoId=${videoId}`
+    );
+    
+    if (!response.ok) throw new Error(`RYD API returned ${response.status}`);
+    
+    const data = await response.json();
+    RYD_CACHE.set(videoId, { data, timestamp: Date.now() });
+    
+    if (RYD_CACHE.size > RYD_CACHE_MAX_SIZE) {
+      const firstKey = RYD_CACHE.keys().next().value;
+      RYD_CACHE.delete(firstKey);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("RYD fetch error:", error);
+    return { error: error.message };
+  }
+}
+
+async function fetchChannelSubs(channelHandle) {
+  if (!channelHandle) return 0;
+  
+  try {
+    const cacheData = await chrome.storage.local.get(CHANNEL_CACHE_KEY);
+    const cache = cacheData[CHANNEL_CACHE_KEY] || {};
+    const cached = cache[channelHandle];
+    
+    if (cached && Date.now() - cached.timestamp < CHANNEL_CACHE_TTL) {
+      return cached.subscribers;
+    }
+  } catch (error) {
+    console.warn("Cache read error:", error);
+  }
+  
+  try {
+    const url = channelHandle.startsWith('@') 
+      ? `https://www.youtube.com/${channelHandle}`
+      : `https://www.youtube.com/channel/${channelHandle}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Channel page returned ${response.status}`);
+    
+    const html = await response.text();
+    const match = html.match(/"subscriberCountText":\{"accessibility":\{"accessibilityData":\{"label":"([^"]+)"\}\}\}/);
+    
+    if (!match) {
+      console.warn("Could not parse subscriber count");
+      return 0;
+    }
+    
+    const subscribers = parseSubscriberCount(match[1]);
+    
+    try {
+      const cacheData = await chrome.storage.local.get(CHANNEL_CACHE_KEY);
+      const cache = cacheData[CHANNEL_CACHE_KEY] || {};
+      cache[channelHandle] = { subscribers, timestamp: Date.now() };
+      
+      const entries = Object.entries(cache);
+      if (entries.length > 100) {
+        entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+        const pruned = Object.fromEntries(entries.slice(0, 100));
+        await chrome.storage.local.set({ [CHANNEL_CACHE_KEY]: pruned });
+      } else {
+        await chrome.storage.local.set({ [CHANNEL_CACHE_KEY]: cache });
+      }
+    } catch (error) {
+      console.warn("Cache write error:", error);
+    }
+    
+    return subscribers;
+  } catch (error) {
+    console.error("Channel fetch error:", error);
+    return 0;
+  }
+}
+
+function parseSubscriberCount(text) {
+  const match = text.match(/([\d.]+)([KMB]?)\s*subscriber/i);
+  if (!match) return 0;
+  
+  let num = parseFloat(match[1]);
+  const suffix = match[2].toUpperCase();
+  const multipliers = { K: 1000, M: 1000000, B: 1000000000 };
+  
+  if (suffix && multipliers[suffix]) {
+    num *= multipliers[suffix];
+  }
+  
+  return Math.round(num);
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === "FETCH_RYD") {
+    fetchRYD(request.videoId).then(sendResponse);
     return true;
   }
-
-  if (msg.type === "FETCH_CHANNEL_SUBS") {
-    getChannelSubs(msg.channelHandle).then(sendResponse).catch((err) => {
-      sendResponse({ subscribers: 0, error: err.message });
+  
+  if (request.type === "FETCH_CHANNEL_SUBS") {
+    fetchChannelSubs(request.channelHandle).then((subscribers) => {
+      sendResponse({ subscribers });
     });
     return true;
   }
 });
-
-async function fetchRYD(videoId) {
-  const cached = rydCache.get(videoId);
-  if (cached && Date.now() - cached.ts < RYD_CACHE_TTL) {
-    return cached.data;
-  }
-
-  const res = await fetch(`${RYD_BASE}?videoId=${videoId}`);
-  if (!res.ok) throw new Error(`RYD ${res.status}`);
-
-  const data = await res.json();
-  const result = {
-    likes: data.likes ?? 0,
-    dislikes: data.dislikes ?? 0,
-    viewCount: data.viewCount ?? 0,
-  };
-
-  rydCache.set(videoId, { data: result, ts: Date.now() });
-
-  if (rydCache.size > 500) {
-    const oldest = [...rydCache.entries()].sort((a, b) => a[1].ts - b[1].ts);
-    for (let i = 0; i < 100; i++) rydCache.delete(oldest[i][0]);
-  }
-
-  return result;
-}
-
-async function getChannelSubs(channelHandle) {
-  if (!channelHandle) return { subscribers: 0 };
-
-  const cacheKey = `ch_${channelHandle}`;
-  const cached = await getChromeCache(cacheKey);
-  if (cached && Date.now() - cached.ts < CHANNEL_CACHE_TTL) {
-    return { subscribers: cached.subscribers };
-  }
-
-  let url;
-  if (channelHandle.startsWith("UC")) {
-    url = `https://www.youtube.com/channel/${channelHandle}`;
-  } else {
-    const handle = channelHandle.startsWith("@") ? channelHandle : `@${channelHandle}`;
-    url = `https://www.youtube.com/${handle}`;
-  }
-
-  try {
-    const res = await fetch(url, { headers: { "Accept-Language": "en" } });
-    if (!res.ok) return { subscribers: 0 };
-
-    const html = await res.text();
-
-    // Extract from ytInitialData: "subscriberCountText":{"simpleText":"523K subscribers"}
-    const match = html.match(/"subscriberCountText"\s*:\s*\{[^}]*"simpleText"\s*:\s*"([^"]+)"/);
-    if (match) {
-      const subscribers = parseSubCount(match[1]);
-      await setChromeCache(cacheKey, { subscribers, ts: Date.now() });
-      return { subscribers };
-    }
-
-    // Fallback: {"content":"12.4K subscribers"}
-    const match2 = html.match(/"subscriberCountText"\s*:\s*\{[^}]*"content"\s*:\s*"([^"]+)"/);
-    if (match2) {
-      const subscribers = parseSubCount(match2[1]);
-      await setChromeCache(cacheKey, { subscribers, ts: Date.now() });
-      return { subscribers };
-    }
-
-    return { subscribers: 0 };
-  } catch (e) {
-    return { subscribers: 0, error: e.message };
-  }
-}
-
-function parseSubCount(str) {
-  if (!str) return 0;
-  str = str.toLowerCase().replace(/subscribers?/gi, "").trim();
-  const multipliers = { k: 1e3, m: 1e6, b: 1e9 };
-  const match = str.match(/([\d.]+)\s*([kmb])?/i);
-  if (!match) return 0;
-  return Math.round(parseFloat(match[1]) * (multipliers[match[2]?.toLowerCase()] || 1));
-}
-
-function getChromeCache(key) {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(key, (data) => resolve(data[key] || null));
-  });
-}
-
-function setChromeCache(key, value) {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [key]: value }, resolve);
-  });
-}
