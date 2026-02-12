@@ -2,6 +2,11 @@
 
 [![License: MIT](https://img.shields.io/badge/Protocol-MIT-30D158.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/Status-Clinical_Access-79ff00.svg?style=flat-square)](https://github.com/yourusername/fodder)
+<p align="center">
+  <img src="fodderBanner.png" alt="FODDER v4 Banner" />
+  <br>
+</p>
+
 
 > **"All content is equal. We simply prefer the ones that are more equal than others."**
 
