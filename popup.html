@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fodder — Settings</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <img src="icons/icon48.png" alt="" class="brand-icon">
+      <div>
+        <span class="brand-name">FODDER SYSTEM</span>
+        <span class="brand-version">v10.0.0</span>
+      </div>
+    </div>
+    <div class="brand-tagline">Supadata Transcript · DeepSeek V3 · Slop Density Engine</div>
+  </header>
+
+  <main>
+
+    <section>
+      <div class="section-title">API CONFIGURATION</div>
+
+      <!-- OpenRouter -->
+      <div class="field-group">
+        <div class="field-header">
+          <label class="field-label" for="openrouterKey">OpenRouter API Key</label>
+          <span class="field-badge required">REQUIRED</span>
+        </div>
+        <div class="field-desc">Powers AI Verdict via DeepSeek V3.</div>
+        <div class="input-wrap">
+          <input type="password" id="openrouterKey" class="key-input" placeholder="sk-or-v1-..." autocomplete="off" spellcheck="false">
+          <button class="eye-btn" data-target="openrouterKey" aria-label="Show/hide key" type="button"></button>
+        </div>
+        <div class="status-row" id="status-or">
+          <span class="status-dot"></span>
+          <span class="status-label">Not configured</span>
+        </div>
+      </div>
+
+      <!-- Supadata Transcript API -->
+      <div class="field-group" style="margin-top:18px;">
+        <div class="field-header">
+          <label class="field-label" for="supadataKey">Supadata Transcript API Key</label>
+          <span class="field-badge required">REQUIRED</span>
+        </div>
+        <div class="field-desc">
+          Powers Slop Density — retrieves video transcripts for analysis.
+          <a href="https://supadata.ai" target="_blank" class="field-link">supadata.ai</a> — ~$0.001/request.
+        </div>
+        <div class="input-wrap">
+          <input type="password" id="supadataKey" class="key-input" placeholder="sd_..." autocomplete="off" spellcheck="false">
+          <button class="eye-btn" data-target="supadataKey" aria-label="Show/hide key" type="button"></button>
+        </div>
+        <div class="status-row" id="status-sd">
+          <span class="status-dot"></span>
+          <span class="status-label">Not configured</span>
+        </div>
+      </div>
+
+      <!-- YouTube Data API -->
+      <div class="field-group" style="margin-top:18px;">
+        <div class="field-header">
+          <label class="field-label" for="ytKey">YouTube Data API v3 Key</label>
+          <span class="field-badge optional">OPTIONAL</span>
+        </div>
+        <div class="field-desc">Enables Audience Drift — comment sentiment analysis.</div>
+        <div class="input-wrap">
+          <input type="password" id="ytKey" class="key-input" placeholder="AIza..." autocomplete="off" spellcheck="false">
+          <button class="eye-btn" data-target="ytKey" aria-label="Show/hide key" type="button"></button>
+        </div>
+        <div class="status-row" id="status-yt">
+          <span class="status-dot"></span>
+          <span class="status-label">Not configured</span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button id="saveBtn" class="btn-primary" type="button">Save</button>
+        <button id="clearBtn" class="btn-ghost" type="button">Clear Keys</button>
+      </div>
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </section>
+
+    <!-- Info note -->
+    <div class="info-note">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span>Supadata retrieves transcripts (~$0.001/video). The Slop Density engine scores the text locally — no additional API calls for that step.</span>
+    </div>
+
+    <div class="security-note">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Keys stored locally in <code>chrome.storage.sync</code>. Sent only to their respective APIs.
+    </div>
+
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

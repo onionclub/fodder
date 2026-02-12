@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "Fodder",
+  "version": "4.0.0",
+  "description": "Clinical Precision: Supadata Transcript → Slop Density → AI Verdict.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://returnyoutubedislikeapi.com/*",
+    "https://www.googleapis.com/*",
+    "https://openrouter.ai/*",
+    "https://api.supadata.ai/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Fodder System",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content_script.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/badge-organic.png",
+        "icons/badge-filler.png",
+        "icons/badge-synthetic.png",
+        "icons/badge-organic-light.png",
+        "icons/badge-filler-light.png",
+        "icons/badge-synthetic-light.png"
+      ],
+      "matches": ["https://www.youtube.com/*"]
+    }
+  ]
+}
